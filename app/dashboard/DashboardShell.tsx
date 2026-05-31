@@ -1,11 +1,11 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { DashboardProvider, useDashboard, type Profile, type Link as LinkType } from './DashboardContext'
 import { createClient } from '@/lib/supabase/client'
-import Preview from './Preview'
+import Preview, { BUTTON_CLASSES, FONT_FAMILIES } from './Preview'
 
 interface ShellProps {
   initialProfile: Profile
@@ -47,10 +47,11 @@ const LogoutIcon = () => (
 )
 
 function ShellInner({ children }: { children: ReactNode }) {
-  const { profile, saving, saveMsg, save } = useDashboard()
+  const { profile, links, saving, saveMsg, save } = useDashboard()
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const [showPreview, setShowPreview] = useState(false)
 
   const logout = async () => {
     await supabase.auth.signOut()
@@ -129,6 +130,17 @@ function ShellInner({ children }: { children: ReactNode }) {
                 {saveMsg}
               </span>
             )}
+            {/* Preview button — hidden on xl where preview panel is always visible */}
+            <button
+              onClick={() => setShowPreview(true)}
+              className="xl:hidden flex items-center gap-1.5 border border-gray-200 text-gray-600 px-3 min-h-[40px] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span className="hidden sm:inline">Preview</span>
+            </button>
             <button onClick={save} disabled={saving}
               className="bg-indigo-600 text-white px-4 min-h-[40px] rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap">
               {saving ? 'Saving…' : 'Save'}
@@ -146,6 +158,9 @@ function ShellInner({ children }: { children: ReactNode }) {
       <div className="hidden xl:flex w-80 shrink-0 border-l border-gray-100 bg-white sticky top-0 h-screen items-start justify-center pt-8 overflow-y-auto">
         <Preview />
       </div>
+
+      {/* ── Full-screen preview modal ── */}
+      {showPreview && <PreviewModal onClose={() => setShowPreview(false)} profile={profile} links={links} />}
 
       {/* ── Bottom navigation (mobile only) ── */}
       <nav className="fixed bottom-0 left-0 right-0 z-20 md:hidden bg-white border-t border-gray-100 safe-area-bottom">
@@ -177,6 +192,109 @@ function ShellInner({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
+    </div>
+  )
+}
+
+// ── Full-screen preview modal ─────────────────────────────────────────────────
+
+interface PreviewModalProps {
+  onClose: () => void
+  profile: import('./DashboardContext').Profile
+  links: import('./DashboardContext').Link[]
+}
+
+function PreviewModal({ onClose, profile, links }: PreviewModalProps) {
+  const activeLinks = links.filter(l => l.is_active)
+  const btnClass = BUTTON_CLASSES[profile.button_style] ?? 'rounded-full'
+  const fontFamily = FONT_FAMILIES[profile.font_family] ?? 'Inter, sans-serif'
+
+  const baseBgStyle: React.CSSProperties =
+    profile.background_type === 'gradient'
+      ? { backgroundImage: profile.background_gradient }
+      : { backgroundColor: profile.background_color }
+
+  const imageUrl = profile.bg_image_url || profile.background_image_url
+  const imageOpacity = (profile.bg_image_opacity ?? 100) / 100
+  const overlayOpacity = (profile.bg_image_overlay ?? 0) / 100
+
+  const btnStyle: React.CSSProperties = {
+    backgroundColor: profile.button_color,
+    color: profile.button_text_color,
+    border: profile.button_border_color && profile.button_border_color !== 'transparent'
+      ? `2px solid ${profile.button_border_color}` : undefined,
+    boxShadow: profile.button_style === 'shadow' ? '0 4px 14px rgba(0,0,0,0.25)' : undefined,
+    fontFamily,
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* Base background */}
+      <div className="absolute inset-0" style={baseBgStyle} />
+
+      {/* Background image layer */}
+      {imageUrl && (
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url(${imageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: imageOpacity,
+        }} />
+      )}
+
+      {/* Dark overlay */}
+      {overlayOpacity > 0 && (
+        <div className="absolute inset-0" style={{ backgroundColor: `rgba(0,0,0,${overlayOpacity})` }} />
+      )}
+
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="fixed top-4 right-4 z-50 w-11 h-11 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors"
+        aria-label="Close preview"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center px-4 pt-[10vh] pb-10 min-h-screen" style={{ fontFamily }}>
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            {profile.avatar_url ? (
+              <img src={profile.avatar_url} alt=""
+                className="w-24 h-24 rounded-full object-cover border-4 border-white/20 shadow-xl mx-auto mb-4" />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-white/20 border-4 border-white/20 shadow-xl flex items-center justify-center mx-auto mb-4 text-4xl">👤</div>
+            )}
+            <h1 className="text-2xl font-bold mb-2" style={{ color: profile.text_color || '#ffffff' }}>
+              {profile.display_name || profile.username}
+            </h1>
+            {profile.bio && (
+              <p className="text-sm leading-relaxed max-w-xs mx-auto opacity-80" style={{ color: profile.text_color || '#ffffff' }}>
+                {profile.bio}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {activeLinks.map(link => (
+              <div key={link.id}
+                className={`w-full text-center py-4 px-6 font-medium min-h-[52px] flex items-center justify-center ${btnClass}`}
+                style={btnStyle}
+              >
+                {link.title}
+              </div>
+            ))}
+            {activeLinks.length === 0 && (
+              <p className="text-center opacity-50 text-sm" style={{ color: profile.text_color || '#ffffff' }}>
+                No active links
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

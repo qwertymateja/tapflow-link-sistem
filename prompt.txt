@@ -1,16 +1,34 @@
-Fix the responsiveness of the entire app:
+Fix these issues:
 
-DASHBOARD:
-- On mobile (< 768px): hide the phone preview, sidebar becomes a bottom navigation bar or hamburger menu
-- On tablet (768px - 1024px): sidebar stays, hide the phone preview or make it smaller
-- On desktop (> 1024px): current layout is fine
+1. MOBILE ZOOM FIX:
+Add this to the <head> in layout.tsx:
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+This prevents the initial zoom on mobile.
 
-PUBLIC PAGE (/@username):
-- Already should be centered, make sure it looks good on all screen sizes
-- Avatar, name, bio and buttons should stack nicely on mobile
+2. MOBILE PREVIEW BUTTON:
+On mobile, add a "Preview" button in the dashboard (bottom of screen or in the header).
+When clicked, opens a full-screen modal showing exactly how the public page looks.
+No need to publish to see changes — it reads from current unsaved state.
+Add a close button (X) to exit the preview modal.
 
-GENERAL:
-- All text should be readable on small screens
-- Buttons and touch targets minimum 44px height on mobile
-- No horizontal scrolling on any page
-- Test all pages: login, register, dashboard/links, dashboard/design, public page
+3. PUBLIC PAGE LAYOUT:
+Move the avatar and name closer to the top of the page.
+Instead of centering everything vertically in the middle of the screen,
+align content to start from ~10-15% from the top (padding-top: 10vh or similar).
+Keep horizontal centering but remove vertical centering.
+
+4. BACKGROUND IMAGE WITH CONTROLS:
+In Dashboard → Design → Background section, add:
+- Image upload option (upload to Supabase storage, bucket: backgrounds)
+- URL input for background image
+- Transparency/opacity slider (0% to 100%) for the background image
+- Darkness overlay slider (0% to 80%) — adds a dark overlay on top of the image
+  so text stays readable
+- These sliders update the live preview in real time
+- Save the values (image_url, image_opacity, image_overlay_darkness) 
+  to the profiles table in Supabase
+
+Also add the SQL for new columns:
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bg_image_url text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bg_image_opacity integer DEFAULT 100;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bg_image_overlay integer DEFAULT 0;

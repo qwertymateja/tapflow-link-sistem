@@ -2,14 +2,14 @@
 
 import { useDashboard } from './DashboardContext'
 
-const BUTTON_CLASSES: Record<string, string> = {
+export const BUTTON_CLASSES: Record<string, string> = {
   pill: 'rounded-full',
   rounded: 'rounded-xl',
   square: 'rounded-none',
   shadow: 'rounded-xl',
 }
 
-const FONT_FAMILIES: Record<string, string> = {
+export const FONT_FAMILIES: Record<string, string> = {
   inter: 'Inter, sans-serif',
   poppins: 'Poppins, sans-serif',
   playfair: '"Playfair Display", serif',
@@ -24,19 +24,14 @@ export default function Preview() {
   const btnClass = BUTTON_CLASSES[profile.button_style] ?? 'rounded-full'
   const fontFamily = FONT_FAMILIES[profile.font_family] ?? 'Inter, sans-serif'
 
-  const bgStyle: React.CSSProperties = (() => {
-    if (profile.background_type === 'gradient') {
-      return { backgroundImage: profile.background_gradient }
-    }
-    if (profile.background_type === 'image' && profile.background_image_url) {
-      return {
-        backgroundImage: `url(${profile.background_image_url})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    }
-    return { backgroundColor: profile.background_color }
-  })()
+  const baseBgStyle: React.CSSProperties =
+    profile.background_type === 'gradient'
+      ? { backgroundImage: profile.background_gradient }
+      : { backgroundColor: profile.background_color }
+
+  const imageUrl = profile.bg_image_url || profile.background_image_url
+  const imageOpacity = (profile.bg_image_opacity ?? 100) / 100
+  const overlayOpacity = (profile.bg_image_overlay ?? 0) / 100
 
   const btnStyle: React.CSSProperties = {
     backgroundColor: profile.button_color,
@@ -60,31 +55,39 @@ export default function Preview() {
         </div>
 
         {/* Screen */}
-        <div className="rounded-[36px] overflow-hidden" style={{ height: 520, ...bgStyle }}>
-          <div className="h-full overflow-y-auto px-4 pt-10 pb-5" style={{ fontFamily }}>
+        <div className="relative rounded-[36px] overflow-hidden" style={{ height: 520 }}>
+          {/* Base bg (solid or gradient) */}
+          <div className="absolute inset-0" style={baseBgStyle} />
+
+          {/* Background image layer */}
+          {imageUrl && (
+            <div className="absolute inset-0" style={{
+              backgroundImage: `url(${imageUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: imageOpacity,
+            }} />
+          )}
+
+          {/* Dark overlay */}
+          {overlayOpacity > 0 && (
+            <div className="absolute inset-0" style={{ backgroundColor: `rgba(0,0,0,${overlayOpacity})` }} />
+          )}
+
+          {/* Content */}
+          <div className="relative z-10 h-full overflow-y-auto px-4 pt-10 pb-5" style={{ fontFamily }}>
             <div className="text-center mb-5">
               {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt=""
-                  className="w-14 h-14 rounded-full object-cover border-2 border-white/20 mx-auto mb-2.5"
-                />
+                <img src={profile.avatar_url} alt=""
+                  className="w-14 h-14 rounded-full object-cover border-2 border-white/20 mx-auto mb-2.5" />
               ) : (
-                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/20 flex items-center justify-center mx-auto mb-2.5 text-xl">
-                  👤
-                </div>
+                <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/20 flex items-center justify-center mx-auto mb-2.5 text-xl">👤</div>
               )}
-              <p
-                className="font-bold text-sm leading-tight"
-                style={{ color: profile.text_color || '#ffffff' }}
-              >
+              <p className="font-bold text-sm leading-tight" style={{ color: profile.text_color || '#ffffff' }}>
                 {profile.display_name || profile.username}
               </p>
               {profile.bio && (
-                <p
-                  className="text-xs mt-1 leading-relaxed opacity-80"
-                  style={{ color: profile.text_color || '#ffffff' }}
-                >
+                <p className="text-xs mt-1 leading-relaxed opacity-80" style={{ color: profile.text_color || '#ffffff' }}>
                   {profile.bio}
                 </p>
               )}
@@ -92,11 +95,7 @@ export default function Preview() {
 
             <div className="space-y-2">
               {activeLinks.map(link => (
-                <div
-                  key={link.id}
-                  className={`w-full text-center py-2.5 px-3 text-xs font-medium ${btnClass}`}
-                  style={btnStyle}
-                >
+                <div key={link.id} className={`w-full text-center py-2.5 px-3 text-xs font-medium ${btnClass}`} style={btnStyle}>
                   {link.title}
                 </div>
               ))}

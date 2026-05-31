@@ -20,6 +20,9 @@ export interface Profile {
   background_image_url: string
   button_border_color: string
   text_color: string
+  bg_image_url: string | null
+  bg_image_opacity: number
+  bg_image_overlay: number
 }
 
 export interface Link {
@@ -38,6 +41,9 @@ const PROFILE_DEFAULTS: Partial<Profile> = {
   background_image_url: '',
   button_border_color: 'transparent',
   text_color: '#ffffff',
+  bg_image_url: null,
+  bg_image_opacity: 100,
+  bg_image_overlay: 0,
 }
 
 interface DashboardContextValue {
@@ -102,6 +108,9 @@ export function DashboardProvider({ initialProfile, initialLinks, userId, childr
       background_image_url: profile.background_image_url,
       button_border_color: profile.button_border_color,
       text_color: profile.text_color,
+      bg_image_url: profile.bg_image_url,
+      bg_image_opacity: profile.bg_image_opacity,
+      bg_image_overlay: profile.bg_image_overlay,
     }).eq('user_id', userId)
     setSaving(false)
     flashMsg(error ? `Error: ${error.message}` : 'Saved!')
@@ -115,7 +124,6 @@ export function DashboardProvider({ initialProfile, initialLinks, userId, childr
     const { data } = supabase.storage.from('avatars').getPublicUrl(path)
     const url = `${data.publicUrl}?t=${Date.now()}`
     setProfile(p => ({ ...p, avatar_url: url }))
-    // Persist immediately so it survives without clicking Save
     await supabase.from('profiles').update({ avatar_url: url }).eq('user_id', userId)
     flashMsg('Avatar updated!')
   }

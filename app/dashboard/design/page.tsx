@@ -82,10 +82,15 @@ export default function DesignPage() {
     setBgImgUploading(true)
     const ext = file.name.split('.').pop() ?? 'jpg'
     const path = `${userId}/bg.${ext}`
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
-    if (!error) {
-      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-      updateProfile({ background_image_url: `${data.publicUrl}?t=${Date.now()}`, background_type: 'image' })
+    // Try 'backgrounds' bucket first, fall back to 'avatars'
+    let uploadError = (await supabase.storage.from('backgrounds').upload(path, file, { upsert: true })).error
+    const bucket = uploadError ? 'avatars' : 'backgrounds'
+    if (uploadError) {
+      uploadError = (await supabase.storage.from('avatars').upload(path, file, { upsert: true })).error
+    }
+    if (!uploadError) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+      updateProfile({ bg_image_url: `${data.publicUrl}?t=${Date.now()}`, background_type: 'image' })
     }
     setBgImgUploading(false)
   }
@@ -290,22 +295,62 @@ export default function DesignPage() {
             )}
 
             {profile.background_type === 'image' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Background image</label>
-                {profile.background_image_url && (
-                  <img src={profile.background_image_url} alt="" className="w-full h-32 object-cover rounded-xl mb-3 border border-gray-200" />
-                )}
-                <div className="flex gap-2 mb-3">
-                  <input ref={bgImgRef} type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
-                  <button onClick={() => bgImgRef.current?.click()} disabled={bgImgUploading}
-                    className="border border-gray-200 rounded-xl px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-                    {bgImgUploading ? 'Uploading…' : 'Upload image'}
-                  </button>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Background image</label>
+                  {(profile.bg_image_url || profile.background_image_url) && (
+                    <img
+                      src={profile.bg_image_url || profile.background_image_url}
+                      alt=""
+                      className="w-full h-32 object-cover rounded-xl mb-3 border border-gray-200"
+                      style={{ opacity: (profile.bg_image_opacity ?? 100) / 100 }}
+                    />
+                  )}
+                  <div className="flex gap-2 mb-3">
+                    <input ref={bgImgRef} type="file" accept="image/*" onChange={handleBgImageUpload} className="hidden" />
+                    <button onClick={() => bgImgRef.current?.click()} disabled={bgImgUploading}
+                      className="border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 min-h-[44px]">
+                      {bgImgUploading ? 'Uploading…' : 'Upload image'}
+                    </button>
+                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Or paste URL</label>
+                  <input type="url" value={profile.bg_image_url || ''} placeholder="https://example.com/bg.jpg"
+                    onChange={e => updateProfile({ bg_image_url: e.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Or paste URL</label>
-                <input type="url" value={profile.background_image_url || ''} placeholder="https://example.com/bg.jpg"
-                  onChange={e => updateProfile({ background_image_url: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-medium text-gray-700">Image opacity</label>
+                    <span className="text-sm text-gray-500 tabular-nums">{profile.bg_image_opacity ?? 100}%</span>
+                  </div>
+                  <input
+                    type="range" min={0} max={100} step={1}
+                    value={profile.bg_image_opacity ?? 100}
+                    onChange={e => updateProfile({ bg_image_opacity: Number(e.target.value) })}
+                    className="w-full h-2 accent-indigo-600 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                    <span>0%</span><span>100%</span>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-medium text-gray-700">Darkness overlay</label>
+                    <span className="text-sm text-gray-500 tabular-nums">{profile.bg_image_overlay ?? 0}%</span>
+                  </div>
+                  <input
+                    type="range" min={0} max={80} step={1}
+                    value={profile.bg_image_overlay ?? 0}
+                    onChange={e => updateProfile({ bg_image_overlay: Number(e.target.value) })}
+                    className="w-full h-2 accent-indigo-600 cursor-pointer"
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                    <span>None</span><span>80% dark</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Helps text stay readable over bright images.</p>
+                </div>
               </div>
             )}
           </div>
