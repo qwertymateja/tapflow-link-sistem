@@ -1,0 +1,22 @@
+{
+  "name": "Vijuganje",
+  "bio": "Вијугање: Клуб за креативно дружење",
+  "photo": "/uploads/photo-1780261602356.jpg",
+  "links": [
+    {
+      "id": "1",
+      "title": "Google recenzije",
+      "url": "https://www.google.com/search?sca_esv=5bcabb5514d506cb&sxsrf=ANbL-n5A4Q9Vz4QY7HDz8YuqdIDNK4OzNw:1780261615977&q=vijuganje&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qOdU9gWYfHk0VJxryT55lzG-gs-NNGV5EiXIBIUrRLA3Gnwq2d7aLZy5GnWsU37rUu2iGAEtbwwZ215vKRVhp6-XbQjbWsfnGtwpJbjKJmL7gvKpNj4I-KMUN1Ypyh4NVIwRmG57hzeMGs2O33HqjTaJtbaggxLuSmZBAQWAIUCqewFCUqw%3D%3D&sa=X&ved=2ahUKEwiq4eipt-SUAxXJ-AIHHdJhKjQQrrQLegQIJBAA&biw=1920&bih=919&dpr=1"
+    },
+    {
+      "id": "2",
+      "title": "Vebsajt",
+      "url": "https://vijuganje.rs/"
+    },
+    {
+      "id": "3",
+      "title": "Instagram",
+      "url": "https://www.instagram.com/vijuganje"
+    }
+  ]
+}

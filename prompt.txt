@@ -1,0 +1,16 @@
+Fix the responsiveness of the entire app:
+
+DASHBOARD:
+- On mobile (< 768px): hide the phone preview, sidebar becomes a bottom navigation bar or hamburger menu
+- On tablet (768px - 1024px): sidebar stays, hide the phone preview or make it smaller
+- On desktop (> 1024px): current layout is fine
+
+PUBLIC PAGE (/@username):
+- Already should be centered, make sure it looks good on all screen sizes
+- Avatar, name, bio and buttons should stack nicely on mobile
+
+GENERAL:
+- All text should be readable on small screens
+- Buttons and touch targets minimum 44px height on mobile
+- No horizontal scrolling on any page
+- Test all pages: login, register, dashboard/links, dashboard/design, public page
