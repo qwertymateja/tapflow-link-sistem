@@ -175,13 +175,13 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
                     </div>
                   )}
 
-                  {/* Connect button */}
-                  <a
-                    href={`wifi://${encodeURIComponent(activeLink.wifi_ssid || '')}:${encodeURIComponent(activeLink.wifi_password || '')}`}
-                    className="block w-full text-center py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+                  {/* Copy password button */}
+                  <button
+                    onClick={() => copyText(`pwd-main-${activeLink.id}`, activeLink.wifi_password || '')}
+                    className="w-full py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors text-sm"
                   >
-                    Connect
-                  </a>
+                    {copied[`pwd-main-${activeLink.id}`] ? 'Copied!' : 'Copy Password'}
+                  </button>
                 </div>
               )}
             </div>
