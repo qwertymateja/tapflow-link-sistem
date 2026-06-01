@@ -23,6 +23,13 @@ export interface Profile {
   bg_image_url: string | null
   bg_image_opacity: number
   bg_image_overlay: number
+  name_size: string
+  bio_size: string
+  name_bold: boolean
+  bio_bold: boolean
+  gradient_start: string
+  gradient_end: string
+  gradient_direction: string
 }
 
 export interface Link {
@@ -32,7 +39,26 @@ export interface Link {
   url: string
   order: number
   is_active: boolean
+  link_type: string
+  content: string | null
+  image_url: string | null
+  wifi_ssid: string | null
+  wifi_password: string | null
+  wifi_qr_url: string | null
 }
+
+export interface NewLinkData {
+  title: string
+  url?: string
+  link_type?: string
+  content?: string | null
+  image_url?: string | null
+  wifi_ssid?: string | null
+  wifi_password?: string | null
+  wifi_qr_url?: string | null
+}
+
+export type UpdateLinkData = Partial<Omit<Link, 'id' | 'user_id' | 'order' | 'is_active'>>
 
 const PROFILE_DEFAULTS: Partial<Profile> = {
   font_family: 'inter',
@@ -44,6 +70,13 @@ const PROFILE_DEFAULTS: Partial<Profile> = {
   bg_image_url: null,
   bg_image_opacity: 100,
   bg_image_overlay: 0,
+  name_size: 'large',
+  bio_size: 'medium',
+  name_bold: true,
+  bio_bold: false,
+  gradient_start: '#833ab4',
+  gradient_end: '#fd1d1d',
+  gradient_direction: 'to bottom',
 }
 
 interface DashboardContextValue {
@@ -54,9 +87,9 @@ interface DashboardContextValue {
   userId: string
   updateProfile: (partial: Partial<Profile>) => void
   save: () => Promise<void>
-  addLink: (title: string, url: string) => Promise<void>
+  addLink: (data: NewLinkData) => Promise<void>
   deleteLink: (id: string) => Promise<void>
-  updateLink: (id: string, title: string, url: string) => Promise<void>
+  updateLink: (id: string, data: UpdateLinkData) => Promise<void>
   toggleLink: (id: string) => Promise<void>
   reorderLinks: (newLinks: Link[]) => Promise<void>
   uploadAvatar: (file: File) => Promise<void>
@@ -111,6 +144,13 @@ export function DashboardProvider({ initialProfile, initialLinks, userId, childr
       bg_image_url: profile.bg_image_url,
       bg_image_opacity: profile.bg_image_opacity,
       bg_image_overlay: profile.bg_image_overlay,
+      name_size: profile.name_size,
+      bio_size: profile.bio_size,
+      name_bold: profile.name_bold,
+      bio_bold: profile.bio_bold,
+      gradient_start: profile.gradient_start,
+      gradient_end: profile.gradient_end,
+      gradient_direction: profile.gradient_direction,
     }).eq('user_id', userId)
     setSaving(false)
     flashMsg(error ? `Error: ${error.message}` : 'Saved!')
@@ -128,13 +168,25 @@ export function DashboardProvider({ initialProfile, initialLinks, userId, childr
     flashMsg('Avatar updated!')
   }
 
-  const addLink = async (title: string, rawUrl: string) => {
-    const url = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
+  const addLink = async (data: NewLinkData) => {
+    const {
+      title,
+      url = '',
+      link_type = 'link',
+      content = null,
+      image_url = null,
+      wifi_ssid = null,
+      wifi_password = null,
+      wifi_qr_url = null,
+    } = data
+    const finalUrl = link_type === 'link' && url && !url.startsWith('http') ? `https://${url}` : url
     const order = links.length
-    const { data, error } = await supabase
-      .from('links').insert({ user_id: userId, title, url, order, is_active: true })
-      .select().single()
-    if (!error && data) setLinks(l => [...l, data as Link])
+    const { data: row, error } = await supabase
+      .from('links').insert({
+        user_id: userId, title, url: finalUrl, order, is_active: true,
+        link_type, content, image_url, wifi_ssid, wifi_password, wifi_qr_url,
+      }).select().single()
+    if (!error && row) setLinks(l => [...l, row as Link])
   }
 
   const deleteLink = async (id: string) => {
@@ -142,10 +194,16 @@ export function DashboardProvider({ initialProfile, initialLinks, userId, childr
     setLinks(l => l.filter(lnk => lnk.id !== id))
   }
 
-  const updateLink = async (id: string, title: string, rawUrl: string) => {
-    const url = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`
-    await supabase.from('links').update({ title, url }).eq('id', id)
-    setLinks(l => l.map(lnk => lnk.id === id ? { ...lnk, title, url } : lnk))
+  const updateLink = async (id: string, data: UpdateLinkData) => {
+    const update = { ...data }
+    if (update.url !== undefined) {
+      const linkType = update.link_type ?? links.find(l => l.id === id)?.link_type
+      if (linkType === 'link' && update.url && !update.url.startsWith('http')) {
+        update.url = `https://${update.url}`
+      }
+    }
+    await supabase.from('links').update(update).eq('id', id)
+    setLinks(l => l.map(lnk => lnk.id === id ? { ...lnk, ...update } : lnk))
   }
 
   const toggleLink = async (id: string) => {

@@ -1,34 +1,65 @@
-Fix these issues:
+Add these new features to the dashboard and public page:
 
-1. MOBILE ZOOM FIX:
-Add this to the <head> in layout.tsx:
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-This prevents the initial zoom on mobile.
+1. CUSTOM GRADIENT BUILDER (Design → Background → Gradient):
+- Keep the 8 preset gradients
+- Add a "Custom" option below presets
+- When Custom is selected, show:
+  - Color picker for gradient start color
+  - Color picker for gradient end color
+  - Direction selector (Top to Bottom, Left to Right, Diagonal ↘, Diagonal ↙)
+- Live preview updates in real time
+- Save custom gradient to profiles table
 
-2. MOBILE PREVIEW BUTTON:
-On mobile, add a "Preview" button in the dashboard (bottom of screen or in the header).
-When clicked, opens a full-screen modal showing exactly how the public page looks.
-No need to publish to see changes — it reads from current unsaved state.
-Add a close button (X) to exit the preview modal.
+2. TEXT SIZE & BOLD OPTIONS (Design → Text):
+- Display name size slider (small / medium / large / xl)
+- Bio text size slider (small / medium / large)
+- Display name bold toggle (on/off)
+- Bio bold toggle (on/off)
+- All update live preview in real time
 
-3. PUBLIC PAGE LAYOUT:
-Move the avatar and name closer to the top of the page.
-Instead of centering everything vertically in the middle of the screen,
-align content to start from ~10-15% from the top (padding-top: 10vh or similar).
-Keep horizontal centering but remove vertical centering.
+3. NEW LINK TYPES (Dashboard → Links → Add):
+When adding a link, user can choose link type:
 
-4. BACKGROUND IMAGE WITH CONTROLS:
-In Dashboard → Design → Background section, add:
-- Image upload option (upload to Supabase storage, bucket: backgrounds)
-- URL input for background image
-- Transparency/opacity slider (0% to 100%) for the background image
-- Darkness overlay slider (0% to 80%) — adds a dark overlay on top of the image
-  so text stays readable
-- These sliders update the live preview in real time
-- Save the values (image_url, image_opacity, image_overlay_darkness) 
-  to the profiles table in Supabase
+TYPE 1 - Regular Link (existing):
+- Title + URL → opens URL on click
 
-Also add the SQL for new columns:
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bg_image_url text;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bg_image_opacity integer DEFAULT 100;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bg_image_overlay integer DEFAULT 0;
+TYPE 2 - Text Block:
+- Title (shown as button)
+- Content (text area, supports line breaks)
+- When clicked on public page → opens a modal/overlay with the text content
+- Close button on modal
+
+TYPE 3 - Image Block:
+- Title (shown as button)  
+- Image upload or URL
+- When clicked on public page → opens a modal with the image displayed
+- Close button on modal
+
+TYPE 4 - WiFi Card:
+- Title (default "WiFi" but editable)
+- Network name (SSID) field
+- Password field (shown as dots, but copyable)
+- QR code image upload (optional)
+- When clicked on public page → opens a modal showing:
+  - Network name with copy button
+  - Password with show/hide toggle and copy button
+  - QR code image if uploaded (tap and hold to save on mobile)
+  - "Connect" button that tries to connect via: wifi://SSID:PASSWORD (works on some Android devices)
+- Copy buttons show "Copied!" feedback for 2 seconds
+
+Add link_type column to links table:
+ALTER TABLE links ADD COLUMN IF NOT EXISTS link_type text DEFAULT 'link';
+ALTER TABLE links ADD COLUMN IF NOT EXISTS content text;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS image_url text;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS wifi_ssid text;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS wifi_password text;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS wifi_qr_url text;
+
+Also add new columns to profiles table:
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name_size text DEFAULT 'large';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio_size text DEFAULT 'medium';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS name_bold boolean DEFAULT true;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bio_bold boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gradient_start text DEFAULT '#833ab4';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gradient_end text DEFAULT '#fd1d1d';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gradient_direction text DEFAULT 'to bottom';

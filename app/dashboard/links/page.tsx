@@ -1,32 +1,81 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useDashboard, type Link } from '../DashboardContext'
+import { useDashboard, type Link, type UpdateLinkData } from '../DashboardContext'
+import { createClient } from '@/lib/supabase/client'
+
+type LinkType = 'link' | 'text' | 'image' | 'wifi'
+
+const LINK_TYPE_OPTIONS: { key: LinkType; label: string; desc: string }[] = [
+  { key: 'link', label: 'Link', desc: 'Opens a URL' },
+  { key: 'text', label: 'Text', desc: 'Shows a text block' },
+  { key: 'image', label: 'Image', desc: 'Shows an image' },
+  { key: 'wifi', label: 'WiFi', desc: 'Shares WiFi credentials' },
+]
 
 export default function LinksPage() {
-  const { links, addLink, deleteLink, updateLink, toggleLink, reorderLinks } = useDashboard()
+  const { links, addLink, deleteLink, updateLink, toggleLink, reorderLinks, userId } = useDashboard()
+  const supabase = createClient()
+
+  // Add form
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [addType, setAddType] = useState<LinkType>('link')
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [content, setContent] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [wifiSsid, setWifiSsid] = useState('')
+  const [wifiPassword, setWifiPassword] = useState('')
+  const [wifiQrUrl, setWifiQrUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const imageFileRef = useRef<HTMLInputElement>(null)
+  const wifiQrFileRef = useRef<HTMLInputElement>(null)
+
+  // Drag
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
 
+  const openAdd = () => {
+    setTitle(''); setUrl(''); setContent(''); setImageUrl('')
+    setWifiSsid(''); setWifiPassword(''); setWifiQrUrl('')
+    setAddType('link')
+    setEditingId('__new__')
+  }
+
   const handleAdd = async () => {
-    if (!title.trim() || !url.trim()) return
-    await addLink(title.trim(), url.trim())
-    setTitle('')
-    setUrl('')
+    if (!title.trim()) return
+    if (addType === 'link' && !url.trim()) return
+    await addLink({
+      title: title.trim(),
+      link_type: addType,
+      url: addType === 'link' ? url.trim() : '',
+      content: addType === 'text' ? content : null,
+      image_url: addType === 'image' ? imageUrl : null,
+      wifi_ssid: addType === 'wifi' ? wifiSsid : null,
+      wifi_password: addType === 'wifi' ? wifiPassword : null,
+      wifi_qr_url: addType === 'wifi' ? wifiQrUrl || null : null,
+    })
+    setEditingId(null)
+  }
+
+  const uploadFile = async (file: File, folder: string, onUrl: (url: string) => void) => {
+    setUploading(true)
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${userId}/${folder}/${Date.now()}.${ext}`
+    let err = (await supabase.storage.from('backgrounds').upload(path, file, { upsert: true })).error
+    const bucket = err ? 'avatars' : 'backgrounds'
+    if (err) err = (await supabase.storage.from('avatars').upload(path, file, { upsert: true })).error
+    if (!err) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+      onUrl(`${data.publicUrl}?t=${Date.now()}`)
+    }
+    setUploading(false)
   }
 
   const handleDragStart = (index: number) => setDragIndex(index)
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    setDragOver(index)
-  }
+  const handleDragOver = (e: React.DragEvent, index: number) => { e.preventDefault(); setDragOver(index) }
   const handleDrop = async (index: number) => {
-    if (dragIndex === null || dragIndex === index) {
-      setDragIndex(null); setDragOver(null); return
-    }
+    if (dragIndex === null || dragIndex === index) { setDragIndex(null); setDragOver(null); return }
     const updated = [...links]
     const [moved] = updated.splice(dragIndex, 1)
     updated.splice(index, 0, moved)
@@ -39,7 +88,7 @@ export default function LinksPage() {
     <div className="max-w-lg">
       {/* Add button */}
       <button
-        onClick={() => { setTitle(''); setUrl(''); setEditingId('__new__') }}
+        onClick={openAdd}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-indigo-300 text-indigo-600 font-medium text-sm hover:border-indigo-500 hover:bg-indigo-50 transition-colors mb-6"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -48,28 +97,91 @@ export default function LinksPage() {
         Add link
       </button>
 
-      {/* Inline add form */}
+      {/* Add form */}
       {editingId === '__new__' && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-4 space-y-3">
+          {/* Type selector */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {LINK_TYPE_OPTIONS.map(t => (
+              <button key={t.key} onClick={() => setAddType(t.key)}
+                className={`py-2 px-1 text-xs font-medium rounded-lg border transition-all ${
+                  addType === t.key ? 'border-indigo-600 bg-white text-indigo-700 shadow-sm' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            placeholder="Title"
+            placeholder={addType === 'wifi' ? 'Title (e.g. "Home WiFi")' : 'Title'}
             autoFocus
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          <input
-            type="text"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            placeholder="URL (e.g. https://example.com)"
-            onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+
+          {addType === 'link' && (
+            <input type="text" value={url} onChange={e => setUrl(e.target.value)}
+              placeholder="URL (e.g. https://example.com)"
+              onKeyDown={e => e.key === 'Enter' && handleAdd()}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          )}
+
+          {addType === 'text' && (
+            <textarea value={content} onChange={e => setContent(e.target.value)}
+              placeholder="Text content…" rows={4}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+          )}
+
+          {addType === 'image' && (
+            <div className="space-y-2">
+              <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
+                placeholder="Image URL"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">or</span>
+                <input ref={imageFileRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'link-images', setImageUrl) }} />
+                <button onClick={() => imageFileRef.current?.click()} disabled={uploading}
+                  className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                  {uploading ? 'Uploading…' : 'Upload image'}
+                </button>
+              </div>
+              {imageUrl && <img src={imageUrl} alt="" className="w-full h-28 object-cover rounded-xl border border-gray-200" />}
+            </div>
+          )}
+
+          {addType === 'wifi' && (
+            <div className="space-y-2">
+              <input type="text" value={wifiSsid} onChange={e => setWifiSsid(e.target.value)}
+                placeholder="Network name (SSID)"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" value={wifiPassword} onChange={e => setWifiPassword(e.target.value)}
+                placeholder="Password"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div>
+                <p className="text-xs text-gray-500 mb-1.5">QR code image (optional)</p>
+                <input type="url" value={wifiQrUrl} onChange={e => setWifiQrUrl(e.target.value)}
+                  placeholder="QR code URL"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2" />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">or</span>
+                  <input ref={wifiQrFileRef} type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'wifi-qr', setWifiQrUrl) }} />
+                  <button onClick={() => wifiQrFileRef.current?.click()} disabled={uploading}
+                    className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                    {uploading ? 'Uploading…' : 'Upload QR'}
+                  </button>
+                </div>
+                {wifiQrUrl && <img src={wifiQrUrl} alt="" className="w-24 h-24 object-contain mt-2 rounded-lg border border-gray-200" />}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
-              onClick={async () => { await handleAdd(); setEditingId(null) }}
+              onClick={async () => { await handleAdd() }}
               className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
               Add
@@ -91,7 +203,7 @@ export default function LinksPage() {
             <LinkEditForm
               key={link.id}
               link={link}
-              onSave={async (t, u) => { await updateLink(link.id, t, u); setEditingId(null) }}
+              onSave={async (data) => { await updateLink(link.id, data); setEditingId(null) }}
               onCancel={() => setEditingId(null)}
             />
           ) : (
@@ -107,7 +219,7 @@ export default function LinksPage() {
               } ${!link.is_active ? 'opacity-50' : ''}`}
             >
               {/* Drag handle */}
-              <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0" title="Drag to reorder">
+              <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 6a2 2 0 110-4 2 2 0 010 4zM8 14a2 2 0 110-4 2 2 0 010 4zM8 22a2 2 0 110-4 2 2 0 010 4zM16 6a2 2 0 110-4 2 2 0 010 4zM16 14a2 2 0 110-4 2 2 0 010 4zM16 22a2 2 0 110-4 2 2 0 010 4z" />
                 </svg>
@@ -115,8 +227,16 @@ export default function LinksPage() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{link.title}</p>
-                <p className="text-xs text-gray-400 truncate">{link.url}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{link.title}</p>
+                  <LinkTypeBadge type={link.link_type || 'link'} />
+                </div>
+                <p className="text-xs text-gray-400 truncate mt-0.5">
+                  {link.link_type === 'text' && (link.content ? link.content.slice(0, 60).replace(/\n/g, ' ') + (link.content.length > 60 ? '…' : '') : 'Text block')}
+                  {link.link_type === 'image' && (link.image_url || 'Image')}
+                  {link.link_type === 'wifi' && `WiFi: ${link.wifi_ssid || ''}`}
+                  {(!link.link_type || link.link_type === 'link') && link.url}
+                </p>
               </div>
 
               {/* Toggle */}
@@ -166,44 +286,134 @@ export default function LinksPage() {
   )
 }
 
+function LinkTypeBadge({ type }: { type: string }) {
+  if (type === 'link' || !type) return null
+  const map: Record<string, string> = {
+    text: 'bg-blue-100 text-blue-700',
+    image: 'bg-green-100 text-green-700',
+    wifi: 'bg-purple-100 text-purple-700',
+  }
+  const labels: Record<string, string> = { text: 'Text', image: 'Image', wifi: 'WiFi' }
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${map[type] ?? 'bg-gray-100 text-gray-600'}`}>
+      {labels[type] ?? type}
+    </span>
+  )
+}
+
 function LinkEditForm({
   link,
   onSave,
   onCancel,
 }: {
   link: Link
-  onSave: (title: string, url: string) => void
+  onSave: (data: UpdateLinkData) => void
   onCancel: () => void
 }) {
+  const type = link.link_type || 'link'
   const [title, setTitle] = useState(link.title)
-  const [url, setUrl] = useState(link.url)
+  const [url, setUrl] = useState(link.url || '')
+  const [content, setContent] = useState(link.content || '')
+  const [imageUrl, setImageUrl] = useState(link.image_url || '')
+  const [wifiSsid, setWifiSsid] = useState(link.wifi_ssid || '')
+  const [wifiPassword, setWifiPassword] = useState(link.wifi_password || '')
+  const [wifiQrUrl, setWifiQrUrl] = useState(link.wifi_qr_url || '')
+  const [uploading, setUploading] = useState(false)
+  const imageFileRef = useRef<HTMLInputElement>(null)
+  const wifiQrFileRef = useRef<HTMLInputElement>(null)
+  const { userId } = useDashboard()
+  const supabase = createClient()
+
+  const uploadFile = async (file: File, folder: string, onUrl: (url: string) => void) => {
+    setUploading(true)
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${userId}/${folder}/${Date.now()}.${ext}`
+    let err = (await supabase.storage.from('backgrounds').upload(path, file, { upsert: true })).error
+    const bucket = err ? 'avatars' : 'backgrounds'
+    if (err) err = (await supabase.storage.from('avatars').upload(path, file, { upsert: true })).error
+    if (!err) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+      onUrl(`${data.publicUrl}?t=${Date.now()}`)
+    }
+    setUploading(false)
+  }
+
+  const handleSave = () => {
+    const data: UpdateLinkData = { title }
+    if (type === 'link') data.url = url
+    if (type === 'text') data.content = content
+    if (type === 'image') data.image_url = imageUrl
+    if (type === 'wifi') {
+      data.wifi_ssid = wifiSsid
+      data.wifi_password = wifiPassword
+      data.wifi_qr_url = wifiQrUrl || null
+    }
+    onSave(data)
+  }
 
   return (
     <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-3">
-      <input
-        type="text"
-        value={title}
-        onChange={e => setTitle(e.target.value)}
-        autoFocus
-        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
-      <input
-        type="text"
-        value={url}
-        onChange={e => setUrl(e.target.value)}
-        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
+      <input type="text" value={title} onChange={e => setTitle(e.target.value)} autoFocus
+        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+
+      {type === 'link' && (
+        <input type="text" value={url} onChange={e => setUrl(e.target.value)}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      )}
+
+      {type === 'text' && (
+        <textarea value={content} onChange={e => setContent(e.target.value)} rows={4}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+      )}
+
+      {type === 'image' && (
+        <div className="space-y-2">
+          <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Image URL"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">or</span>
+            <input ref={imageFileRef} type="file" accept="image/*" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'link-images', setImageUrl) }} />
+            <button onClick={() => imageFileRef.current?.click()} disabled={uploading}
+              className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+              {uploading ? 'Uploading…' : 'Upload image'}
+            </button>
+          </div>
+          {imageUrl && <img src={imageUrl} alt="" className="w-full h-28 object-cover rounded-xl border border-gray-200" />}
+        </div>
+      )}
+
+      {type === 'wifi' && (
+        <div className="space-y-2">
+          <input type="text" value={wifiSsid} onChange={e => setWifiSsid(e.target.value)} placeholder="Network name (SSID)"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input type="text" value={wifiPassword} onChange={e => setWifiPassword(e.target.value)} placeholder="Password"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <div>
+            <p className="text-xs text-gray-500 mb-1.5">QR code image (optional)</p>
+            <input type="url" value={wifiQrUrl} onChange={e => setWifiQrUrl(e.target.value)} placeholder="QR code URL"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">or</span>
+              <input ref={wifiQrFileRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f, 'wifi-qr', setWifiQrUrl) }} />
+              <button onClick={() => wifiQrFileRef.current?.click()} disabled={uploading}
+                className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                {uploading ? 'Uploading…' : 'Upload QR'}
+              </button>
+            </div>
+            {wifiQrUrl && <img src={wifiQrUrl} alt="" className="w-24 h-24 object-contain mt-2 rounded-lg border border-gray-200" />}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
-        <button
-          onClick={() => onSave(title, url)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors"
-        >
+        <button onClick={handleSave}
+          className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">
           Save
         </button>
-        <button
-          onClick={onCancel}
-          className="bg-white text-gray-600 px-4 py-2 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
+        <button onClick={onCancel}
+          className="bg-white text-gray-600 px-4 py-2 rounded-xl text-sm border border-gray-200 hover:bg-gray-50 transition-colors">
           Cancel
         </button>
       </div>

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import ProfileLinks from './ProfileLinks'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,9 @@ const FONT_FAMILIES: Record<string, string> = {
   space_grotesk: '"Space Grotesk", sans-serif',
 }
 
+const NAME_SIZE_MAP: Record<string, string> = { small: '18px', medium: '22px', large: '28px', xl: '36px' }
+const BIO_SIZE_MAP: Record<string, string> = { small: '12px', medium: '14px', large: '16px' }
+
 export default async function ProfilePage({ params }: Props) {
   const supabase = createClient()
 
@@ -35,7 +39,7 @@ export default async function ProfilePage({ params }: Props) {
   if (!profile) notFound()
 
   const { data: links } = await supabase
-    .from('links').select('id, title, url')
+    .from('links').select('id, title, url, link_type, content, image_url, wifi_ssid, wifi_password, wifi_qr_url')
     .eq('user_id', profile.user_id).eq('is_active', true)
     .order('order', { ascending: true })
 
@@ -62,6 +66,11 @@ export default async function ProfilePage({ params }: Props) {
     fontFamily,
   }
 
+  const nameSize = NAME_SIZE_MAP[(profile.name_size as string) || 'large'] ?? '28px'
+  const bioSize = BIO_SIZE_MAP[(profile.bio_size as string) || 'medium'] ?? '14px'
+  const nameBold = (profile.name_bold as boolean) !== false
+  const bioBold = !!(profile.bio_bold as boolean)
+
   return (
     <main className="relative min-h-screen" style={baseBgStyle}>
       {/* Background image layer */}
@@ -79,7 +88,7 @@ export default async function ProfilePage({ params }: Props) {
         <div className="absolute inset-0" style={{ backgroundColor: `rgba(0,0,0,${overlayOpacity})` }} />
       )}
 
-      {/* Content — top-aligned, horizontally centered */}
+      {/* Content */}
       <div className="relative z-10 flex justify-center px-4 pt-[10vh] pb-12">
         <div className="w-full max-w-md" style={{ fontFamily }}>
           <div className="text-center mb-8">
@@ -94,30 +103,17 @@ export default async function ProfilePage({ params }: Props) {
                 <span className="text-4xl">👤</span>
               </div>
             )}
-            <h1 className="text-2xl font-bold mb-2" style={{ color: textColor }}>
+            <h1 className="mb-2" style={{ color: textColor, fontSize: nameSize, fontWeight: nameBold ? 'bold' : 'normal', lineHeight: 1.2 }}>
               {profile.display_name || profile.username}
             </h1>
             {profile.bio && (
-              <p className="text-sm leading-relaxed max-w-xs mx-auto opacity-80" style={{ color: textColor }}>
+              <p className="max-w-xs mx-auto opacity-80 leading-relaxed" style={{ color: textColor, fontSize: bioSize, fontWeight: bioBold ? 'bold' : 'normal' }}>
                 {profile.bio}
               </p>
             )}
           </div>
 
-          <div className="space-y-3">
-            {(links || []).map(link => (
-              <a
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`block w-full text-center py-4 px-6 font-medium transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 min-h-[52px] flex items-center justify-center ${btnClass}`}
-                style={btnStyle}
-              >
-                {link.title}
-              </a>
-            ))}
-          </div>
+          <ProfileLinks links={links || []} btnClass={btnClass} btnStyle={btnStyle} />
         </div>
       </div>
     </main>

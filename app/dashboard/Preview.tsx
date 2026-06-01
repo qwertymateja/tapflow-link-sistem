@@ -17,6 +17,9 @@ export const FONT_FAMILIES: Record<string, string> = {
   space_grotesk: '"Space Grotesk", sans-serif',
 }
 
+const NAME_SIZES: Record<string, string> = { small: '11px', medium: '13px', large: '15px', xl: '19px' }
+const BIO_SIZES: Record<string, string> = { small: '9px', medium: '11px', large: '13px' }
+
 export default function Preview() {
   const { profile, links } = useDashboard()
 
@@ -43,6 +46,12 @@ export default function Preview() {
     fontFamily,
   }
 
+  const textColor = profile.text_color || '#ffffff'
+  const nameSize = NAME_SIZES[profile.name_size || 'large'] ?? '15px'
+  const bioSize = BIO_SIZES[profile.bio_size || 'medium'] ?? '11px'
+  const nameBold = profile.name_bold !== false
+  const bioBold = !!profile.bio_bold
+
   return (
     <div className="flex flex-col items-center">
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Preview</p>
@@ -56,7 +65,7 @@ export default function Preview() {
 
         {/* Screen */}
         <div className="relative rounded-[36px] overflow-hidden" style={{ height: 520 }}>
-          {/* Base bg (solid or gradient) */}
+          {/* Base bg */}
           <div className="absolute inset-0" style={baseBgStyle} />
 
           {/* Background image layer */}
@@ -83,11 +92,11 @@ export default function Preview() {
               ) : (
                 <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/20 flex items-center justify-center mx-auto mb-2.5 text-xl">👤</div>
               )}
-              <p className="font-bold text-sm leading-tight" style={{ color: profile.text_color || '#ffffff' }}>
+              <p style={{ color: textColor, fontSize: nameSize, fontWeight: nameBold ? 'bold' : 'normal', lineHeight: 1.3 }}>
                 {profile.display_name || profile.username}
               </p>
               {profile.bio && (
-                <p className="text-xs mt-1 leading-relaxed opacity-80" style={{ color: profile.text_color || '#ffffff' }}>
+                <p className="mt-1 leading-relaxed opacity-80" style={{ color: textColor, fontSize: bioSize, fontWeight: bioBold ? 'bold' : 'normal' }}>
                   {profile.bio}
                 </p>
               )}
@@ -95,12 +104,27 @@ export default function Preview() {
 
             <div className="space-y-2">
               {activeLinks.map(link => (
-                <div key={link.id} className={`w-full text-center py-2.5 px-3 text-xs font-medium ${btnClass}`} style={btnStyle}>
-                  {link.title}
+                <div key={link.id} className={`w-full py-2.5 px-3 text-xs font-medium ${btnClass} flex items-center justify-center gap-1.5`} style={btnStyle}>
+                  {link.link_type === 'text' && (
+                    <svg className="w-3 h-3 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h8" />
+                    </svg>
+                  )}
+                  {link.link_type === 'image' && (
+                    <svg className="w-3 h-3 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                  {link.link_type === 'wifi' && (
+                    <svg className="w-3 h-3 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                    </svg>
+                  )}
+                  <span className="truncate">{link.title}</span>
                 </div>
               ))}
               {activeLinks.length === 0 && (
-                <p className="text-xs text-center opacity-40 py-4" style={{ color: profile.text_color || '#ffffff' }}>
+                <p className="text-xs text-center opacity-40 py-4" style={{ color: textColor }}>
                   No active links
                 </p>
               )}
