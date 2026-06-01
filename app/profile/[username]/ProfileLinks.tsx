@@ -44,6 +44,11 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
 
   const activeLink = links.find(l => l.id === activeModal)
 
+  // Primary modal button: full user style
+  const modalBtnStyle: React.CSSProperties = { ...btnStyle, fontFamily: undefined }
+  // Secondary modal button: same shape but 70% opacity
+  const modalBtnSecondaryStyle: React.CSSProperties = { ...modalBtnStyle, opacity: 0.7 }
+
   return (
     <>
       <div className="space-y-3">
@@ -122,6 +127,7 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
 
             {/* Content */}
             <div className="p-5">
+
               {/* Text block */}
               {activeLink.link_type === 'text' && (
                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm">{activeLink.content}</p>
@@ -151,7 +157,8 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
                     <a
                       href={activeLink.pdf_url}
                       download
-                      className="flex-1 text-center py-3 bg-gray-100 text-gray-800 font-medium rounded-xl hover:bg-gray-200 transition-colors text-sm"
+                      className={`flex-1 text-center py-3 font-medium transition-opacity hover:opacity-80 text-sm ${btnClass}`}
+                      style={modalBtnSecondaryStyle}
                     >
                       Download
                     </a>
@@ -159,7 +166,8 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
                       href={activeLink.pdf_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 text-center py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+                      className={`flex-1 text-center py-3 font-medium transition-opacity hover:opacity-80 text-sm ${btnClass}`}
+                      style={modalBtnStyle}
                     >
                       Open in new tab
                     </a>
@@ -178,7 +186,8 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
                     </div>
                     <button
                       onClick={() => copyText(`ssid-${activeLink.id}`, activeLink.wifi_ssid || '')}
-                      className="px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shrink-0"
+                      className={`px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 shrink-0 ${btnClass}`}
+                      style={modalBtnStyle}
                     >
                       {copied[`ssid-${activeLink.id}`] ? 'Copied!' : 'Copy'}
                     </button>
@@ -197,13 +206,15 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
                     <div className="flex gap-1.5 shrink-0">
                       <button
                         onClick={() => setShowPassword(p => ({ ...p, [activeLink.id]: !p[activeLink.id] }))}
-                        className="px-2.5 py-1.5 text-xs font-medium bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                        className={`px-2.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 ${btnClass}`}
+                        style={modalBtnSecondaryStyle}
                       >
                         {showPassword[activeLink.id] ? 'Hide' : 'Show'}
                       </button>
                       <button
                         onClick={() => copyText(`pwd-${activeLink.id}`, activeLink.wifi_password || '')}
-                        className="px-2.5 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                        className={`px-2.5 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 ${btnClass}`}
+                        style={modalBtnStyle}
                       >
                         {copied[`pwd-${activeLink.id}`] ? 'Copied!' : 'Copy'}
                       </button>
@@ -221,15 +232,17 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
                     </div>
                   )}
 
-                  {/* Copy password button */}
+                  {/* Copy Password button */}
                   <button
                     onClick={() => copyText(`pwd-main-${activeLink.id}`, activeLink.wifi_password || '')}
-                    className="w-full py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+                    className={`w-full py-3 font-medium transition-opacity hover:opacity-80 text-sm ${btnClass}`}
+                    style={modalBtnStyle}
                   >
                     {copied[`pwd-main-${activeLink.id}`] ? 'Copied!' : 'Copy Password'}
                   </button>
                 </div>
               )}
+
             </div>
           </div>
         </div>

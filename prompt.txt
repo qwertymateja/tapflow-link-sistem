@@ -1,17 +1,6 @@
-Add a new link type: PDF
-
-TYPE 5 - PDF:
-- Title (shown as button, e.g. "Our Menu")
-- PDF file upload (upload to Supabase storage, bucket: pdfs)
-- Or paste a URL to an existing PDF
-- When clicked on public page → opens the PDF in a new tab or in a modal viewer
-- Show a PDF icon/badge in the link list in dashboard
-- In the modal: show PDF embedded with <iframe> or <embed>, with a "Download" button and "Open in new tab" button
-- On mobile: since iframe PDF rendering is unreliable on mobile, 
-  if on mobile device open the PDF directly in a new tab instead
-
-Add to links table:
-ALTER TABLE links ADD COLUMN IF NOT EXISTS pdf_url text;
-
-Create a public Supabase storage bucket named: pdfs
-Add storage policies same as avatars bucket but for pdfs bucket.
+In the WiFi modal on the public page, the action buttons (Copy Password, etc.) 
+should use the user's custom button colors instead of hardcoded purple.
+Apply the same button style, button color, button text color, and border radius 
+that the user has set in Design → Buttons.
+This applies to all modals (WiFi, Text, Image, PDF) — all buttons inside 
+modals should match the user's custom button design.
