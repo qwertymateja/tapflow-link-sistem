@@ -12,6 +12,7 @@ export type PublicLink = {
   wifi_ssid: string | null
   wifi_password: string | null
   wifi_qr_url: string | null
+  pdf_url: string | null
 }
 
 interface Props {
@@ -24,6 +25,16 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState<Record<string, boolean>>({})
+
+  const isMobile = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+  const handlePdfClick = (link: PublicLink) => {
+    if (isMobile()) {
+      window.open(link.pdf_url || '', '_blank', 'noopener,noreferrer')
+    } else {
+      setActiveModal(link.id)
+    }
+  }
 
   const copyText = async (key: string, text: string) => {
     try { await navigator.clipboard.writeText(text) } catch { return }
@@ -55,7 +66,7 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
           return (
             <button
               key={link.id}
-              onClick={() => setActiveModal(link.id)}
+              onClick={() => type === 'pdf' ? handlePdfClick(link) : setActiveModal(link.id)}
               className={`w-full text-center py-4 px-6 font-medium transition-all duration-200 hover:opacity-90 hover:-translate-y-0.5 min-h-[52px] flex items-center justify-center gap-2 ${btnClass}`}
               style={btnStyle}
             >
@@ -72,6 +83,11 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
               {type === 'wifi' && (
                 <svg className="w-4 h-4 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                </svg>
+              )}
+              {type === 'pdf' && (
+                <svg className="w-4 h-4 shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
               )}
               {link.title}
@@ -119,6 +135,36 @@ export default function ProfileLinks({ links, btnClass, btnStyle }: Props) {
                   className="w-full rounded-xl"
                   style={{ touchAction: 'manipulation' }}
                 />
+              )}
+
+              {/* PDF */}
+              {activeLink.link_type === 'pdf' && activeLink.pdf_url && (
+                <div className="space-y-4">
+                  <div className="w-full rounded-xl overflow-hidden border border-gray-200" style={{ height: '60vh' }}>
+                    <iframe
+                      src={activeLink.pdf_url}
+                      className="w-full h-full"
+                      title={activeLink.title}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <a
+                      href={activeLink.pdf_url}
+                      download
+                      className="flex-1 text-center py-3 bg-gray-100 text-gray-800 font-medium rounded-xl hover:bg-gray-200 transition-colors text-sm"
+                    >
+                      Download
+                    </a>
+                    <a
+                      href={activeLink.pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-center py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+                    >
+                      Open in new tab
+                    </a>
+                  </div>
+                </div>
               )}
 
               {/* WiFi */}

@@ -4,13 +4,14 @@ import { useState, useRef } from 'react'
 import { useDashboard, type Link, type UpdateLinkData } from '../DashboardContext'
 import { createClient } from '@/lib/supabase/client'
 
-type LinkType = 'link' | 'text' | 'image' | 'wifi'
+type LinkType = 'link' | 'text' | 'image' | 'wifi' | 'pdf'
 
 const LINK_TYPE_OPTIONS: { key: LinkType; label: string; desc: string }[] = [
   { key: 'link', label: 'Link', desc: 'Opens a URL' },
   { key: 'text', label: 'Text', desc: 'Shows a text block' },
   { key: 'image', label: 'Image', desc: 'Shows an image' },
   { key: 'wifi', label: 'WiFi', desc: 'Shares WiFi credentials' },
+  { key: 'pdf', label: 'PDF', desc: 'Opens a PDF' },
 ]
 
 export default function LinksPage() {
@@ -27,9 +28,11 @@ export default function LinksPage() {
   const [wifiSsid, setWifiSsid] = useState('')
   const [wifiPassword, setWifiPassword] = useState('')
   const [wifiQrUrl, setWifiQrUrl] = useState('')
+  const [pdfUrl, setPdfUrl] = useState('')
   const [uploading, setUploading] = useState(false)
   const imageFileRef = useRef<HTMLInputElement>(null)
   const wifiQrFileRef = useRef<HTMLInputElement>(null)
+  const pdfFileRef = useRef<HTMLInputElement>(null)
 
   // Drag
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -37,7 +40,7 @@ export default function LinksPage() {
 
   const openAdd = () => {
     setTitle(''); setUrl(''); setContent(''); setImageUrl('')
-    setWifiSsid(''); setWifiPassword(''); setWifiQrUrl('')
+    setWifiSsid(''); setWifiPassword(''); setWifiQrUrl(''); setPdfUrl('')
     setAddType('link')
     setEditingId('__new__')
   }
@@ -54,6 +57,7 @@ export default function LinksPage() {
       wifi_ssid: addType === 'wifi' ? wifiSsid : null,
       wifi_password: addType === 'wifi' ? wifiPassword : null,
       wifi_qr_url: addType === 'wifi' ? wifiQrUrl || null : null,
+      pdf_url: addType === 'pdf' ? pdfUrl || null : null,
     })
     setEditingId(null)
   }
@@ -64,6 +68,20 @@ export default function LinksPage() {
     const path = `${userId}/${folder}/${Date.now()}.${ext}`
     let err = (await supabase.storage.from('backgrounds').upload(path, file, { upsert: true })).error
     const bucket = err ? 'avatars' : 'backgrounds'
+    if (err) err = (await supabase.storage.from('avatars').upload(path, file, { upsert: true })).error
+    if (!err) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+      onUrl(`${data.publicUrl}?t=${Date.now()}`)
+    }
+    setUploading(false)
+  }
+
+  const uploadPdf = async (file: File, onUrl: (url: string) => void) => {
+    setUploading(true)
+    const ext = file.name.split('.').pop() ?? 'pdf'
+    const path = `${userId}/${Date.now()}.${ext}`
+    let err = (await supabase.storage.from('pdfs').upload(path, file, { upsert: true })).error
+    const bucket = err ? 'avatars' : 'pdfs'
     if (err) err = (await supabase.storage.from('avatars').upload(path, file, { upsert: true })).error
     if (!err) {
       const { data } = supabase.storage.from(bucket).getPublicUrl(path)
@@ -179,6 +197,24 @@ export default function LinksPage() {
             </div>
           )}
 
+          {addType === 'pdf' && (
+            <div className="space-y-2">
+              <input type="url" value={pdfUrl} onChange={e => setPdfUrl(e.target.value)}
+                placeholder="PDF URL"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">or</span>
+                <input ref={pdfFileRef} type="file" accept="application/pdf" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadPdf(f, setPdfUrl) }} />
+                <button onClick={() => pdfFileRef.current?.click()} disabled={uploading}
+                  className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                  {uploading ? 'Uploading…' : 'Upload PDF'}
+                </button>
+              </div>
+              {pdfUrl && <p className="text-xs text-green-600 truncate">{pdfUrl}</p>}
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={async () => { await handleAdd() }}
@@ -235,6 +271,7 @@ export default function LinksPage() {
                   {link.link_type === 'text' && (link.content ? link.content.slice(0, 60).replace(/\n/g, ' ') + (link.content.length > 60 ? '…' : '') : 'Text block')}
                   {link.link_type === 'image' && (link.image_url || 'Image')}
                   {link.link_type === 'wifi' && `WiFi: ${link.wifi_ssid || ''}`}
+                  {link.link_type === 'pdf' && (link.pdf_url || 'PDF')}
                   {(!link.link_type || link.link_type === 'link') && link.url}
                 </p>
               </div>
@@ -292,8 +329,9 @@ function LinkTypeBadge({ type }: { type: string }) {
     text: 'bg-blue-100 text-blue-700',
     image: 'bg-green-100 text-green-700',
     wifi: 'bg-purple-100 text-purple-700',
+    pdf: 'bg-red-100 text-red-700',
   }
-  const labels: Record<string, string> = { text: 'Text', image: 'Image', wifi: 'WiFi' }
+  const labels: Record<string, string> = { text: 'Text', image: 'Image', wifi: 'WiFi', pdf: 'PDF' }
   return (
     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${map[type] ?? 'bg-gray-100 text-gray-600'}`}>
       {labels[type] ?? type}
@@ -318,9 +356,11 @@ function LinkEditForm({
   const [wifiSsid, setWifiSsid] = useState(link.wifi_ssid || '')
   const [wifiPassword, setWifiPassword] = useState(link.wifi_password || '')
   const [wifiQrUrl, setWifiQrUrl] = useState(link.wifi_qr_url || '')
+  const [pdfUrl, setPdfUrl] = useState(link.pdf_url || '')
   const [uploading, setUploading] = useState(false)
   const imageFileRef = useRef<HTMLInputElement>(null)
   const wifiQrFileRef = useRef<HTMLInputElement>(null)
+  const pdfFileRef = useRef<HTMLInputElement>(null)
   const { userId } = useDashboard()
   const supabase = createClient()
 
@@ -330,6 +370,20 @@ function LinkEditForm({
     const path = `${userId}/${folder}/${Date.now()}.${ext}`
     let err = (await supabase.storage.from('backgrounds').upload(path, file, { upsert: true })).error
     const bucket = err ? 'avatars' : 'backgrounds'
+    if (err) err = (await supabase.storage.from('avatars').upload(path, file, { upsert: true })).error
+    if (!err) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+      onUrl(`${data.publicUrl}?t=${Date.now()}`)
+    }
+    setUploading(false)
+  }
+
+  const uploadPdf = async (file: File, onUrl: (url: string) => void) => {
+    setUploading(true)
+    const ext = file.name.split('.').pop() ?? 'pdf'
+    const path = `${userId}/${Date.now()}.${ext}`
+    let err = (await supabase.storage.from('pdfs').upload(path, file, { upsert: true })).error
+    const bucket = err ? 'avatars' : 'pdfs'
     if (err) err = (await supabase.storage.from('avatars').upload(path, file, { upsert: true })).error
     if (!err) {
       const { data } = supabase.storage.from(bucket).getPublicUrl(path)
@@ -348,6 +402,7 @@ function LinkEditForm({
       data.wifi_password = wifiPassword
       data.wifi_qr_url = wifiQrUrl || null
     }
+    if (type === 'pdf') data.pdf_url = pdfUrl || null
     onSave(data)
   }
 
@@ -404,6 +459,23 @@ function LinkEditForm({
             </div>
             {wifiQrUrl && <img src={wifiQrUrl} alt="" className="w-24 h-24 object-contain mt-2 rounded-lg border border-gray-200" />}
           </div>
+        </div>
+      )}
+
+      {type === 'pdf' && (
+        <div className="space-y-2">
+          <input type="url" value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} placeholder="PDF URL"
+            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">or</span>
+            <input ref={pdfFileRef} type="file" accept="application/pdf" className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) uploadPdf(f, setPdfUrl) }} />
+            <button onClick={() => pdfFileRef.current?.click()} disabled={uploading}
+              className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+              {uploading ? 'Uploading…' : 'Upload PDF'}
+            </button>
+          </div>
+          {pdfUrl && <p className="text-xs text-green-600 truncate">{pdfUrl}</p>}
         </div>
       )}
 

@@ -16,3 +16,21 @@ ALTER TABLE links ADD COLUMN IF NOT EXISTS image_url text;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS wifi_ssid text;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS wifi_password text;
 ALTER TABLE links ADD COLUMN IF NOT EXISTS wifi_qr_url text;
+ALTER TABLE links ADD COLUMN IF NOT EXISTS pdf_url text;
+
+-- Storage bucket for PDF files
+INSERT INTO storage.buckets (id, name, public) VALUES ('pdfs', 'pdfs', true)
+  ON CONFLICT (id) DO NOTHING;
+
+-- RLS policies for pdfs bucket (same pattern as avatars)
+CREATE POLICY "Public pdfs are viewable by everyone" ON storage.objects
+  FOR SELECT USING (bucket_id = 'pdfs');
+
+CREATE POLICY "Users can upload pdfs" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'pdfs' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can update their pdfs" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'pdfs' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can delete their pdfs" ON storage.objects
+  FOR DELETE USING (bucket_id = 'pdfs' AND auth.uid()::text = (storage.foldername(name))[1]);

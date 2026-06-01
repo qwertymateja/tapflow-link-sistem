@@ -45,6 +45,7 @@ export interface Link {
   wifi_ssid: string | null
   wifi_password: string | null
   wifi_qr_url: string | null
+  pdf_url: string | null
 }
 
 export interface NewLinkData {
@@ -56,6 +57,7 @@ export interface NewLinkData {
   wifi_ssid?: string | null
   wifi_password?: string | null
   wifi_qr_url?: string | null
+  pdf_url?: string | null
 }
 
 export type UpdateLinkData = Partial<Omit<Link, 'id' | 'user_id' | 'order' | 'is_active'>>
@@ -178,13 +180,14 @@ export function DashboardProvider({ initialProfile, initialLinks, userId, childr
       wifi_ssid = null,
       wifi_password = null,
       wifi_qr_url = null,
+      pdf_url = null,
     } = data
     const finalUrl = link_type === 'link' && url && !url.startsWith('http') ? `https://${url}` : url
     const order = links.length
     const { data: row, error } = await supabase
       .from('links').insert({
         user_id: userId, title, url: finalUrl, order, is_active: true,
-        link_type, content, image_url, wifi_ssid, wifi_password, wifi_qr_url,
+        link_type, content, image_url, wifi_ssid, wifi_password, wifi_qr_url, pdf_url,
       }).select().single()
     if (!error && row) setLinks(l => [...l, row as Link])
   }

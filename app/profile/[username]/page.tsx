@@ -39,7 +39,7 @@ export default async function ProfilePage({ params }: Props) {
   if (!profile) notFound()
 
   const { data: links } = await supabase
-    .from('links').select('id, title, url, link_type, content, image_url, wifi_ssid, wifi_password, wifi_qr_url')
+    .from('links').select('id, title, url, link_type, content, image_url, wifi_ssid, wifi_password, wifi_qr_url, pdf_url')
     .eq('user_id', profile.user_id).eq('is_active', true)
     .order('order', { ascending: true })
 
